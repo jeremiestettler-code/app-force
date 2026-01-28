@@ -48,6 +48,87 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto;background:var
 .media.one{grid-template-columns:1fr}
 .media img{width:100%;max-height:34vh;object-fit:contain;border-radius:16px;border:1px solid var(--line);background:#01040b}
 
+/* Petit bouton "i" superposé sur le GIF */
+.infoBtn{
+  position:absolute;
+  right:10px;
+  bottom:10px;
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(2,6,23,.62);
+  color:var(--text);
+  font-weight:950;
+  display:none;
+  place-items:center;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.22);
+}
+.infoBtn.show{display:grid}
+:root[data-theme="light"] .infoBtn{
+  background: rgba(255,255,255,.88);
+  color:#0f172a;
+  border-color: rgba(15,23,42,.14);
+  box-shadow: 0 10px 24px rgba(15,23,42,.10);
+}
+
+/* Overlay d'infos (Comment faire / Erreurs) */
+.infoOverlay{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:10px;
+  background:rgba(2,6,23,.58);
+  border-radius:16px;
+  z-index:60;
+}
+.infoOverlay.show{display:flex}
+.infoPanel{
+  width:100%;
+  max-height:100%;
+  overflow:auto;
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(2,6,23,.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 18px 50px rgba(0,0,0,.42);
+}
+:root[data-theme="light"] .infoPanel{ background:rgba(255,255,255,.96); }
+.infoHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:12px 12px 10px;
+  border-bottom:1px solid rgba(148,163,184,.14);
+}
+.infoTitle{font-weight:950}
+.infoClose{
+  width:34px;height:34px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(148,163,184,.10);
+  color:var(--text);
+  font-weight:950;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-theme="light"] .infoClose{ background: rgba(15,23,42,.06); color:#0f172a; }
+.infoBody{ padding:12px; }
+.infoBody .section{ margin-top:10px; }
+.infoBody .section:first-child{ margin-top:0; }
+
 /* Overlay "exercice suivant" */
 .nextOverlay{
   position:absolute; inset:0;
@@ -159,6 +240,28 @@ th{color:var(--muted);font-weight:900}
           <div class="name" id="nextName">—</div>
         </div>
       </div>
+
+      <!-- Bouton infos (Comment faire / Erreurs) -->
+      <button id="infoBtn" class="infoBtn" type="button" aria-label="Infos exercice">i</button>
+
+      <!-- Overlay infos exercice -->
+      <div id="infoOverlay" class="infoOverlay" role="dialog" aria-modal="true" aria-label="Infos exercice">
+      <div class="infoPanel">
+      <div class="infoHeader">
+      <div class="infoTitle">Infos exercice</div>
+      <button id="infoClose" class="infoClose" type="button" aria-label="Fermer">✕</button>
+      </div>
+      <div class="infoBody">
+      <div class="section" id="howtoBox">
+      <h3>Comment faire</h3>
+      <ul id="steps"></ul>
+      </div>
+      <div class="section" id="mistakesBox">
+      <h3>Erreurs à éviter</h3>
+      <ul id="mistakes"></ul>
+      </div>
+      </div>
+    </div></div>
     </div>
 
     <div class="section">
@@ -177,16 +280,6 @@ th{color:var(--muted);font-weight:900}
     <div class="timerBox">
       <div class="clock" id="clock">00:45</div>
       <div class="mode" id="mode">—</div>
-    </div>
-
-    <div class="section" id="howtoBox">
-      <h3>Comment faire</h3>
-      <ul id="steps"></ul>
-    </div>
-
-    <div class="section" id="mistakesBox">
-      <h3>Erreurs à éviter</h3>
-      <ul id="mistakes"></ul>
     </div>
 
     <div class="section" id="historyBox">
@@ -441,6 +534,7 @@ let running = false;
 let coachMode = true;
 let coachHold = false;  // quand on a cliqué "Pause" (coach), on n'auto-redémarre plus
 
+// Overlay infos exercice
 /* ========= AUDIO / VOICE ========= */
 function beep(freq=880, ms=220){
   try{
@@ -472,6 +566,19 @@ function announcePhaseStart(p){
   if(p === "work") speak("Début de l'exercice");
   else if(p === "rest") speak("Début du repos");
   else if(p === "warmup") speak("Échauffement");
+}
+
+function openInfo(){
+  const ov = $("infoOverlay");
+  if(!ov) return;
+  if(ov.classList.contains("show")) return;
+  ov.classList.add("show");
+}
+
+function closeInfo(){
+  const ov = $("infoOverlay");
+  if(!ov) return;
+  ov.classList.remove("show");
 }
 
 /* ========= HISTORY (localStorage) ========= */
@@ -839,9 +946,16 @@ function render(){
   if(phase === "warmup"){
     $("steps").innerHTML = "";
     $("mistakes").innerHTML = "";
+    // pas d'infos en échauffement
+    $("infoBtn").classList.remove("show");
+    closeInfo();
   } else {
     $("steps").innerHTML = (ex?.steps || []).map(s=>`<li>${s}</li>`).join("");
     $("mistakes").innerHTML = (ex?.mistakes || []).map(s=>`<li>${s}</li>`).join("");
+
+    const hasInfo = ((ex?.steps || []).length + (ex?.mistakes || []).length) > 0;
+    $("infoBtn").classList.toggle("show", hasInfo);
+    if(!hasInfo) closeInfo();
   }
 
   // Images display
@@ -952,6 +1066,20 @@ window.addEventListener("DOMContentLoaded", ()=>{
   mountHomeControls();
   applyTheme(getSavedOrPreferredTheme());
   refreshThemeUIVisibility();
+
+  // Infos exercice overlay
+  const infoBtn = $("infoBtn");
+  const infoOverlay = $("infoOverlay");
+  const infoClose = $("infoClose");
+  if(infoBtn) infoBtn.addEventListener("click", (e)=>{ e.preventDefault(); openInfo(); });
+  if(infoClose) infoClose.addEventListener("click", (e)=>{ e.preventDefault(); closeInfo(); });
+  if(infoOverlay){
+    // click sur le fond = fermer
+    infoOverlay.addEventListener("click", (e)=>{
+      if(e.target === infoOverlay) closeInfo();
+    });
+  }
+
 const d = $("debug");
   d.style.display = "none";
   const hasSessions = !!window.SESSIONS;
