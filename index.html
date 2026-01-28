@@ -38,6 +38,25 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto;background:var
 .app{padding-bottom:250px}
 .h1{font-size:20px;font-weight:950;margin:6px 0;text-align:center}
 .meta{color:var(--muted);font-size:13px;text-align:center}
+
+.topRow{position:relative;display:flex;align-items:center;justify-content:center;margin-top:6px}
+.topRow .h1{flex:1;margin:0;text-align:center;padding:0 58px} /* reserve space for back+switch */
+.coachSwitch{position:absolute;right:0;top:50%;transform:translateY(-50%);width:44px;height:26px;display:inline-block;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.coachSwitch input{display:none}
+.coachSwitch span{position:absolute;inset:0;border-radius:999px;background:rgba(148,163,184,.25);border:1px solid rgba(148,163,184,.28);transition:all .18s ease}
+.coachSwitch span:before{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:999px;background:rgba(248,250,252,.92);box-shadow:0 8px 18px rgba(0,0,0,.25);transition:all .18s ease}
+.coachSwitch input:checked + span{background:rgba(34,197,94,.35);border-color:rgba(34,197,94,.45)}
+.coachSwitch input:checked + span:before{transform:translateX(18px);background:rgba(240,253,244,.98)}
+:root[data-theme="light"] .coachSwitch span{background:rgba(15,23,42,.12);border-color:rgba(15,23,42,.14)}
+:root[data-theme="light"] .coachSwitch span:before{background:#ffffff;box-shadow:0 8px 18px rgba(15,23,42,.14)}
+.backBtn{position:absolute;left:0;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:12px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.35);color:inherit;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+:root[data-theme="light"] .backBtn{background:rgba(255,255,255,.82);border-color:rgba(15,23,42,.12)}
+.phase-work .coachSwitch,.phase-work .backBtn{opacity:0;pointer-events:none}
+.coachSwitch,.backBtn{transition:opacity .18s ease}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.grid1{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+
 .pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
 .pill{padding:6px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.22);background:rgba(148,163,184,.08);color:var(--muted);font-size:12px}
 .pill.accent{border-color:rgba(56,189,248,.35);color:#bae6fd;background:rgba(56,189,248,.08)}
@@ -222,7 +241,14 @@ th{color:var(--muted);font-weight:900}
 <!-- WORKOUT -->
 <section id="workout" class="view">
   <div class="app">
-    <div class="h1" id="title">—</div>
+    <div class="topRow">
+      <button class="backBtn" id="backBtn" type="button" aria-label="Retour">←</button>
+      <div class="h1" id="title">—</div>
+      <label class="coachSwitch" title="Mode coach">
+        <input type="checkbox" id="coachToggle" />
+        <span></span>
+      </label>
+    </div>
     <div class="meta" id="meta">—</div>
 
     <div class="pills">
@@ -309,10 +335,8 @@ th{color:var(--muted);font-weight:900}
       <button class="primary" id="startPause">Start</button>
       <button class="secondary" id="nextBtn">Suivant (série)</button>
     </div>
-    <div class="grid3">
+    <div class="grid1">
       <button class="tertiary" id="prevBtn">Précédent</button>
-      <button class="tertiary" id="coachBtn">Mode coach</button>
-      <button class="tertiary" id="homeBtn">Menu</button>
     </div>
   </div>
 </section>
@@ -842,6 +866,9 @@ function render(){
   if(phase === "work") $("phasePill").textContent = "Travail";
   if(phase === "rest") $("phasePill").textContent = "Repos";
 
+  // Hide top controls during work (keep title visible)
+  document.documentElement.classList.toggle("phase-work", phase === "work");
+
   // Content
   let title = "—";
   let meta = "—";
@@ -1032,17 +1059,26 @@ $("startPause").onclick = ()=>{
 };
 $("nextBtn").onclick = nextManual;
 $("prevBtn").onclick = prevManual;
-$("coachBtn").onclick = ()=>{
-  coachMode = !coachMode;
-  coachHold = false;
+// Switch Mode coach (en haut à droite)
+const coachToggle = $("coachToggle");
+function syncCoachUI(){
+  if(coachToggle) coachToggle.checked = !!coachMode;
   $("coachPill").textContent = `Coach : ${coachMode ? "ON" : "OFF"}`;
-  beep(coachMode ? 880 : 440, 160);
-  if(coachMode && !running){
-    // au basculement, on démarre si on est dans workout
-    if($("workout").classList.contains("show")) autoStartIfCoach();
-  }
-};
-$("homeBtn").onclick = showHome;
+}
+if(coachToggle){
+  coachToggle.addEventListener("change", ()=>{
+    coachMode = !!coachToggle.checked;
+    coachHold = false;
+    syncCoachUI();
+    beep(coachMode ? 880 : 440, 160);
+    if(coachMode && !running){
+      // au basculement, on démarre si on est dans workout
+      if($("workout").classList.contains("show")) autoStartIfCoach();
+    }
+  });
+}
+syncCoachUI();
+$("backBtn").onclick = showHome;
 
 $("saveWeightBtn").onclick = ()=>{
   const ex = currentExercise();
