@@ -255,11 +255,89 @@ th{color:var(--muted);font-weight:900}
       background: #0f172a;
     }
 
+/* Minimal login overlay (n'affecte pas l'affichage des séances) */
+#loginOverlay{
+  position:fixed; inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  background:rgba(2,6,23,.66);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index:99999;
+}
+#loginOverlay.show{display:flex}
+#loginCard{
+  width:min(520px, 100%);
+  border-radius:16px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(2,6,23,.90);
+  box-shadow: 0 18px 50px rgba(0,0,0,.42);
+  padding:14px;
+}
+#loginCard h2{margin:0;font-size:16px;font-weight:900}
+#loginCard p{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.35}
+#loginCard .row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+#loginCard input{
+  flex:1;
+  min-width: 170px;
+  padding:12px 12px;
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.22);
+  background:#020617;
+  color:var(--text);
+  outline:none;
+}
+#loginCard button{
+  width:100%;
+  padding:14px;
+  border-radius:14px;
+  border:0;
+  font-weight:900;
+  background:var(--accent);
+  color:#020617;
+  cursor:pointer;
+}
+#loginCard .msg{margin-top:10px;color:var(--muted);font-size:12px;white-space:pre-wrap}
+#loginTopPill{
+  position:fixed;
+  top: calc(10px + env(safe-area-inset-top));
+  left: 12px;
+  z-index: 9999;
+  display:none;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(2,6,23,.62);
+  color:var(--text);
+  font-size:12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+#loginTopPill.show{display:flex}
+#logoutBtn{
+  border:0;
+  background:rgba(148,163,184,.12);
+  color:var(--text);
+  border-radius:999px;
+  padding:6px 10px;
+  font-weight:900;
+  cursor:pointer;
+}
 </style>
 </head>
 <body>
 
 <div id="debug"></div>
+
+<!-- small auth pill (doesn't change session list layout) -->
+<div id="loginTopPill">
+  <span id="loginUser">—</span>
+  <button id="logoutBtn" type="button">Déconnexion</button>
+</div>
 
 <!-- HOME -->
 <section id="home" class="view show home">
@@ -368,8 +446,146 @@ th{color:var(--muted);font-weight:900}
   </div>
 </section>
 
-<script src="sessions.js"></script>
+<!-- Login overlay -->
+<div id="loginOverlay" role="dialog" aria-modal="true" aria-label="Connexion">
+  <div id="loginCard">
+    <h2>Connexion</h2>
+    <p>Connecte-toi pour charger ton pack de séances (Firestore → users/{uid}/profile/config).</p>
+    <div class="row">
+      <input id="loginEmail" type="email" autocomplete="username" placeholder="Email">
+      <input id="loginPass" type="password" autocomplete="current-password" placeholder="Mot de passe">
+    </div>
+    <div class="row">
+      <button id="loginBtn" type="button">Se connecter</button>
+    </div>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+</div>
+
+<!-- KEEP: images mapping -->
 <script src="images.js"></script>
+
+<!-- NEW: Firebase Option B loader (doesn't change sessions UI/cards) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAPICbQrWgARovGaebUYYP-WwohxQAYtuw",
+    authDomain: "programme-force.firebaseapp.com",
+    projectId: "programme-force",
+    storageBucket: "programme-force.firebasestorage.app",
+    messagingSenderId: "1070910165788",
+    appId: "1:1070910165788:web:8212aec95671abfbdb60d9"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  const $ = (id)=>document.getElementById(id);
+
+  function showLogin(show, msg=""){
+    const ov = $("loginOverlay");
+    const m  = $("loginMsg");
+    if(m) m.textContent = msg || "";
+    if(!ov) return;
+    ov.classList.toggle("show", !!show);
+  }
+  function setTopPill(user){
+    const pill = $("loginTopPill");
+    const u = $("loginUser");
+    if(!pill || !u) return;
+    if(!user){
+      pill.classList.remove("show");
+      u.textContent = "—";
+      return;
+    }
+    pill.classList.add("show");
+    u.textContent = user.email || "Connecté";
+  }
+
+  function loadScriptOnce(src){
+    return new Promise((resolve, reject)=>{
+      if(document.querySelector(\`script[data-dyn="\${src}"]\`)) return resolve();
+      const s = document.createElement("script");
+      s.src = src;
+      s.async = true;
+      s.setAttribute("data-dyn", src);
+      s.onload = ()=>resolve();
+      s.onerror = ()=>reject(new Error("Impossible de charger: " + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function loadUserSessions(uid){
+    const ref = doc(db, \`users/\${uid}/profile/config\`);
+    const snap = await getDoc(ref);
+    if(!snap.exists()) throw new Error("Config manquante: users/{uid}/profile/config");
+
+    const cfg = snap.data() || {};
+    const file = cfg.sessionsFile;
+    const varName = cfg.sessionsVar;
+
+    if(!file || !varName) throw new Error("Config invalide: sessionsFile/sessionsVar");
+
+    await loadScriptOnce(file);
+
+    const obj = window[varName];
+    if(!obj) throw new Error(\`window["\${varName}"] introuvable (sessionsVar incorrect ou fichier).\`);
+
+    // Normalise: ton app lit window.SESSIONS
+    window.SESSIONS = obj;
+
+    // Notify the non-module script
+    window.dispatchEvent(new Event("pf:sessionsReady"));
+  }
+
+  $("loginBtn")?.addEventListener("click", async ()=>{
+    const email = $("loginEmail")?.value?.trim();
+    const pass  = $("loginPass")?.value || "";
+    if(!email || !pass){
+      showLogin(true, "Entre email + mot de passe.");
+      return;
+    }
+    try{
+      await signInWithEmailAndPassword(auth, email, pass);
+    }catch(e){
+      showLogin(true, "Connexion impossible: " + (e?.message || e));
+    }
+  });
+
+  $("logoutBtn")?.addEventListener("click", async ()=>{
+    try{ await signOut(auth); }catch(e){}
+  });
+
+  onAuthStateChanged(auth, async (user)=>{
+    setTopPill(user);
+
+    if(!user){
+      showLogin(true, "");
+      // ensure sessions cleared
+      window.SESSIONS = window.SESSIONS || null;
+      return;
+    }
+
+    try{
+      showLogin(false, "");
+      await loadUserSessions(user.uid);
+    }catch(e){
+      console.error(e);
+      // show login overlay as an error surface (still same home layout under it)
+      showLogin(true, "Erreur chargement séances:\n" + (e?.message || e));
+    }
+  });
+
+  // PWA SW (if present)
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
+  }
+</script>
+
 <script>
 /* ========= SAFE REFERENCES ========= */
 const IMG = window.IMG || {};
@@ -1172,12 +1388,31 @@ window.addEventListener("DOMContentLoaded", ()=>{
     });
   }
 
-const d = $("debug");
+  const d = $("debug");
   d.style.display = "none";
   const hasSessions = !!window.SESSIONS;
   const hasImages = !!window.IMG;
-  d.textContent = `✅ init\\nSESSIONS: ${hasSessions ? Object.keys(window.SESSIONS).length : "absent"}\\nIMG keys: ${hasImages ? Object.keys(window.IMG).length : "absent"}`;
-  renderSessions();
+  d.textContent = `✅ init\nSESSIONS: ${hasSessions ? Object.keys(window.SESSIONS).length : "absent"}\nIMG keys: ${hasImages ? Object.keys(window.IMG).length : "absent"}`;
+
+  // NEW: wait for sessions loaded via Firebase (Option B)
+  const tryRender = ()=>{
+    renderSessions();
+  };
+  if(window.SESSIONS && Object.keys(window.SESSIONS||{}).length){
+    tryRender();
+  }else{
+    // Render after loader dispatches event
+    window.addEventListener("pf:sessionsReady", ()=>{
+      tryRender();
+    }, { once:true });
+
+    // fallback: show empty state after 2s if no event (keeps same UI)
+    setTimeout(()=>{
+      if(!(window.SESSIONS && Object.keys(window.SESSIONS||{}).length)){
+        tryRender();
+      }
+    }, 2000);
+  }
 });
 </script>
 </body>
