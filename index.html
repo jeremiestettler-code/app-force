@@ -13,17 +13,261 @@
 <link rel="apple-touch-icon-precomposed" href="icons/icon-192.png">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-title" content="Force">
+<style>
+:root{
+  --bg:#020617;--card:#0b1220;--text:#f8fafc;--muted:#94a3b8;--accent:#38bdf8;
+  --line:#1e293b;--ok:#22c55e;--warn:#f59e0b;--danger:#ef4444;
+  --mono: ui-monospace, Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto;background:var(--bg);color:var(--text);padding-top: env(safe-area-inset-top);}
+.view{display:none;min-height:100vh;padding:16px}
+.view.show{display:block}
+#debug{display:none;padding:10px 12px;background:rgba(34,197,94,.12);border-bottom:1px solid rgba(34,197,94,.25);color:#bbf7d0;font-family:var(--mono);font-size:12px;white-space:pre-wrap}
 
+/* HOME */
+.home h1{margin:0;font-size:26px;font-weight:950}
+.home p{color:var(--muted);margin:8px 0 14px}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+.card{border:1px solid var(--line);border-radius:16px;padding:14px;background:var(--card)}
+.card h2{margin:0;font-size:16px;font-weight:900}
+.card .meta{color:var(--muted);font-size:12px;margin-top:6px}
+.card button{margin-top:12px;width:100%;padding:14px;border-radius:14px;border:0;font-weight:900;background:var(--accent);color:#020617;cursor:pointer}
+
+/* WORKOUT */
+.app{padding-bottom:250px}
+.h1{font-size:20px;font-weight:950;margin:6px 0;text-align:center}
+.meta{color:var(--muted);font-size:13px;text-align:center}
+
+.topRow{position:relative;display:flex;align-items:center;justify-content:center;margin-top:6px}
+.topRow .h1{flex:1;margin:0;text-align:center;padding:0 58px} /* reserve space for back+switch */
+.coachSwitch{position:absolute;right:0;top:50%;transform:translateY(-50%);width:44px;height:26px;display:inline-block;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.coachSwitch input{display:none}
+.coachSwitch span{position:absolute;inset:0;border-radius:999px;background:rgba(148,163,184,.25);border:1px solid rgba(148,163,184,.28);transition:all .18s ease}
+.coachSwitch span:before{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:999px;background:rgba(248,250,252,.92);box-shadow:0 8px 18px rgba(0,0,0,.25);transition:all .18s ease}
+.coachSwitch input:checked + span{background:rgba(34,197,94,.35);border-color:rgba(34,197,94,.45)}
+.coachSwitch input:checked + span:before{transform:translateX(18px);background:rgba(240,253,244,.98)}
+:root[data-theme="light"] .coachSwitch span{background:rgba(15,23,42,.12);border-color:rgba(15,23,42,.14)}
+:root[data-theme="light"] .coachSwitch span:before{background:#ffffff;box-shadow:0 8px 18px rgba(15,23,42,.14)}
+.backBtn{position:absolute;left:0;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:12px;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.35);color:inherit;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+:root[data-theme="light"] .backBtn{background:rgba(255,255,255,.82);border-color:rgba(15,23,42,.12)}
+.phase-work .coachSwitch,.phase-work .backBtn{opacity:0;pointer-events:none}
+.coachSwitch,.backBtn{transition:opacity .18s ease}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.grid1{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+
+.pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}
+.pill{padding:6px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.22);background:rgba(148,163,184,.08);color:var(--muted);font-size:12px}
+.pill.accent{border-color:rgba(56,189,248,.35);color:#bae6fd;background:rgba(56,189,248,.08)}
+.pill.ok{border-color:rgba(34,197,94,.35);color:#bbf7d0;background:rgba(34,197,94,.08)}
+.pill.warn{border-color:rgba(245,158,11,.35);color:#fde68a;background:rgba(245,158,11,.08)}
+
+.media{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;position:relative}
+.media.one{grid-template-columns:1fr}
+.media img{width:100%;max-height:34vh;object-fit:contain;border-radius:16px;border:1px solid var(--line);background:#01040b}
+
+/* Petit bouton "i" superposé sur le GIF */
+.infoBtn{
+  position:absolute;
+  right:10px;
+  bottom:10px;
+  width:34px;
+  height:34px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(2,6,23,.62);
+  color:var(--text);
+  font-weight:950;
+  display:none;
+  place-items:center;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.22);
+}
+.infoBtn.show{display:grid}
+:root[data-theme="light"] .infoBtn{
+  background: rgba(255,255,255,.88);
+  color:#0f172a;
+  border-color: rgba(15,23,42,.14);
+  box-shadow: 0 10px 24px rgba(15,23,42,.10);
+}
+
+/* Overlay d'infos (Comment faire / Erreurs) */
+.infoOverlay{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:10px;
+  background:rgba(2,6,23,.58);
+  border-radius:16px;
+  z-index:60;
+}
+.infoOverlay.show{display:flex}
+.infoPanel{
+  width:100%;
+  max-height:100%;
+  overflow:auto;
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(2,6,23,.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 18px 50px rgba(0,0,0,.42);
+}
+:root[data-theme="light"] .infoPanel{ background:rgba(255,255,255,.96); }
+.infoHeader{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:12px 12px 10px;
+  border-bottom:1px solid rgba(148,163,184,.14);
+}
+.infoTitle{font-weight:950}
+.infoClose{
+  width:34px;height:34px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(148,163,184,.10);
+  color:var(--text);
+  font-weight:950;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-theme="light"] .infoClose{ background: rgba(15,23,42,.06); color:#0f172a; }
+.infoBody{ padding:12px; }
+.infoBody .section{ margin-top:10px; }
+.infoBody .section:first-child{ margin-top:0; }
+
+/* Overlay "exercice suivant" */
+.nextOverlay{
+  position:absolute; inset:0;
+  display:none; align-items:center; justify-content:center; text-align:center;
+  border-radius:16px;
+  background:linear-gradient(180deg, rgba(2,6,23,.12), rgba(2,6,23,.72));
+  pointer-events:none;
+}
+.nextOverlay.show{display:flex}
+.nextOverlay .box{
+  border:1px solid rgba(56,189,248,.35);
+  background:rgba(2,6,23,.78);
+  padding:14px 16px;border-radius:14px;
+  max-width:92%;
+}
+.nextOverlay .label{
+  font-size:12px;letter-spacing:.14em;
+  color:#7dd3fc;font-weight:950;
+}
+.nextOverlay .name{
+  font-size:18px;font-weight:950;margin-top:6px;line-height:1.2
+}
+
+.section{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:var(--card);padding:12px}
+.section h3{margin:0 0 8px;font-size:14px;font-weight:900}
+.section ul{margin:0;padding-left:18px;font-size:13px;color:#cbd5e1}
+.section .row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.small{color:var(--muted);font-size:12px;line-height:1.3}
+
+.dots{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.dot{width:10px;height:10px;border-radius:999px;background:rgba(148,163,184,.25);border:1px solid rgba(148,163,184,.25)}
+.dot.on{background:rgba(34,197,94,.9);border-color:rgba(34,197,94,.9)}
+.dot.cur{background:rgba(56,189,248,.9);border-color:rgba(56,189,248,.9)}
+
+.timerBox{margin-top:12px;border:1px solid var(--line);border-radius:16px;background:#060c18;padding:12px;text-align:center}
+.clock{font-family:var(--mono);font-size:52px;font-weight:950}
+.mode{color:var(--muted);font-size:13px;margin-top:4px}
+
+.historyTop{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.historyTop input{
+  width:160px;padding:10px 12px;border-radius:14px;border:1px solid rgba(148,163,184,.22);
+  background:#020617;color:var(--text);outline:none;
+}
+.historyTop button{padding:10px 12px;border-radius:14px;border:0;font-weight:900}
+.btnOk{background:rgba(56,189,248,.18);color:#bae6fd}
+.btnDanger{background:rgba(239,68,68,.18);color:#fecaca}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+th,td{padding:8px 6px;border-bottom:1px solid rgba(148,163,184,.14);text-align:left}
+th{color:var(--muted);font-weight:900}
+
+.footer{position:fixed;left:0;right:0;bottom:0;padding:12px;background:rgba(2,6,23,.92);border-top:1px solid var(--line);backdrop-filter: blur(10px)}
+.footer .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.footer .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
+.footer button{width:100%;padding:16px;border-radius:16px;border:0;font-weight:900}
+.primary{background:var(--accent);color:#020617}
+.secondary{background:#1e293b;color:var(--text)}
+.tertiary{background:rgba(148,163,184,.12);color:var(--text)}
+
+/* Transport controls (Prev / Play-Pause / Next) */
+.footer{position:fixed;left:0;right:0;bottom:0;padding:12px;background:rgba(2,6,23,.92);/* border-top supprimée (Option A) */backdrop-filter: blur(10px)}
+.transport{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:10px}
+.tbtn{
+  width:100%;
+  height:56px;
+  border-radius:16px;
+  border:1px solid rgba(148,163,184,.22);
+  background:rgba(148,163,184,.10);
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.tbtn.primary{
+  background:rgba(56,189,248,.20);
+  border-color:rgba(56,189,248,.35);
+  color:#bae6fd;
+}
+.tbtn svg{width:26px;height:26px;display:block}
+.tbtn:disabled{opacity:.35;cursor:default;}
+.tbtn:disabled svg{opacity:.9}
+:root[data-theme="light"] .footer{ background: rgba(243,245,248,.92) !important; }
+:root[data-theme="light"] .tbtn{
+  background:#f1f5f9;
+  border-color:rgba(15,23,42,.12);
+  color:#0f172a;
+}
+:root[data-theme="light"] .tbtn.primary{
+  background:rgba(56,189,248,.18);
+  border-color:rgba(56,189,248,.30);
+  color:#0f172a;
+}
+
+
+    :root[data-theme="light"] .card button{
+      background: var(--accent);
+      color: #ffffff;
+    }
+    :root[data-theme="light"] .secondary{
+      background: #e5e7eb;
+      color: #0f172a;
+    }
+    :root[data-theme="light"] .tertiary{
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+    :root[data-theme="light"] .themeSwitch label{
+      background: #e2e8f0;
+    }
+    :root[data-theme="light"] .themeSwitch span{
+      background: #0f172a;
+    }
+
+</style>
 </head>
 <body>
 
 <div id="debug"></div>
-
-<!-- small auth pill (doesn't change session list layout) -->
-
-  <span id="loginUser">—</span>
-  <button id="logoutBtn" type="button">Déconnexion</button>
-</div>
 
 <!-- HOME -->
 <section id="home" class="view show home">
@@ -99,6 +343,8 @@
 
     <div class="timerBox">
       <div class="clock" id="clock">00:45</div>
+      <div class="mode" id="mode">—</div>
+    </div>
 </div>
 
     <div class="section" id="historyBox">
@@ -124,6 +370,12 @@
   </div>
 
   <div class="footer">
+    <div class="grid2">
+      <button class="primary" id="startPause">Start</button>
+      <button class="secondary" id="nextBtn">Suivant (série)</button>
+    </div>
+    <div class="grid1">
+      <button class="tertiary" id="prevBtn">Précédent</button>
     <div class="transport">
       <button class="tbtn" id="prevBtn" type="button" aria-label="Précédent"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 5L3 12l8 7V5zm10 0L13 12l8 7V5z"/></svg></button>
       <button class="tbtn primary" id="startPause" type="button" aria-label="Start / Pause"><span id="startPauseIcon"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg></span></button>
@@ -132,105 +384,8 @@
   </div>
 </section>
 
-<!-- Login overlay -->
-
-  <div id="loginCard">
-    <h2>Connexion</h2>
-    <p>Connecte-toi pour charger ton pack de séances (Firestore → users/{uid}/profile/config).</p>
-    <div class="row">
-      <input id="loginEmail" type="email" autocomplete="username" placeholder="Email">
-      <input id="loginPass" type="password" autocomplete="current-password" placeholder="Mot de passe">
-    </div>
-    <div class="row">
-      <button id="loginBtn" type="button">Se connecter</button>
-    </div>
-    <div class="msg" id="loginMsg"></div>
-  </div>
-</div>
-
-<!-- KEEP: images mapping -->
+<script src="sessions.js"></script>
 <script src="images.js"></script>
-
-<!-- NEW: Firebase Option B loader (doesn't change sessions UI/cards) -->
-{
-      if(document.querySelector(\`script[data-dyn="\${src}"]\`)) return resolve();
-      const s = document.createElement("script");
-      s.src = src;
-      s.async = true;
-      s.setAttribute("data-dyn", src);
-      s.onload = ()=>resolve();
-      s.onerror = ()=>reject(new Error("Impossible de charger: " + src));
-      document.head.appendChild(s);
-    });
-  }
-
-  async function loadUserSessions(uid){
-    const ref = doc(db, \`users/\${uid}/profile/config\`);
-    const snap = await getDoc(ref);
-    if(!snap.exists()) throw new Error("Config manquante: users/{uid}/profile/config");
-
-    const cfg = snap.data() || {};
-    const file = cfg.sessionsFile;
-    const varName = cfg.sessionsVar;
-
-    if(!file || !varName) throw new Error("Config invalide: sessionsFile/sessionsVar");
-
-    await loadScriptOnce(file);
-
-    const obj = window[varName];
-    if(!obj) throw new Error(\`window["\${varName}"] introuvable (sessionsVar incorrect ou fichier).\`);
-
-    // Normalise: ton app lit window.SESSIONS
-    window.SESSIONS = obj;
-
-    // Notify the non-module script
-    window.dispatchEvent(new Event("pf:sessionsReady"));
-  }
-
-  $("loginBtn")?.addEventListener("click", async ()=>{
-    const email = $("loginEmail")?.value?.trim();
-    const pass  = $("loginPass")?.value || "";
-    if(!email || !pass){
-      showLogin(true, "Entre email + mot de passe.");
-      return;
-    }
-    try{
-      await signInWithEmailAndPassword(auth, email, pass);
-    }catch(e){
-      showLogin(true, "Connexion impossible: " + (e?.message || e));
-    }
-  });
-
-  $("logoutBtn")?.addEventListener("click", async ()=>{
-    try{ await signOut(auth); }catch(e){}
-  });
-
-  onAuthStateChanged(auth, async (user)=>{
-    setTopPill(user);
-
-    if(!user){
-      showLogin(true, "");
-      // ensure sessions cleared
-      window.SESSIONS = window.SESSIONS || null;
-      return;
-    }
-
-    try{
-      showLogin(false, "");
-      await loadUserSessions(user.uid);
-    }catch(e){
-      console.error(e);
-      // show login overlay as an error surface (still same home layout under it)
-      showLogin(true, "Erreur chargement séances:\n" + (e?.message || e));
-    }
-  });
-
-  // PWA SW (if present)
-  if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("./service-worker.js").catch(()=>{});
-  }
-</script>
-
 <script>
 /* ========= SAFE REFERENCES ========= */
 const IMG = window.IMG || {};
@@ -304,6 +459,7 @@ function injectThemeCSS(){
     }
     :root[data-theme="light"] .timerBox{ background:#f1f5f9 !important; }
     :root[data-theme="light"] .media img{ background:#f8fafc !important; }
+    :root[data-theme="light"] .footer{ background: rgba(243,245,248,.92) !important; }
     :root[data-theme="light"] .historyTop input{ background:#fff !important; color: var(--text) !important; }
 
     /* Compact controls (HOME only) */
@@ -586,11 +742,13 @@ function renderDots(sets){
 function stopTimer(){
   running = false;
   if(timer){ clearInterval(timer); timer = null; }
+  $("startPause").textContent = "Start";
   setStartPauseUI(false);
 }
 function startTimer(){
   if(running) return;
   running = true;
+  $("startPause").textContent = "Pause";
   setStartPauseUI(true);
   timer = setInterval(()=>{
     remaining -= 1;
@@ -973,6 +1131,8 @@ $("startPause").onclick = ()=>{
     startTimer();
   }
 };
+$("nextBtn").onclick = nextManual;
+$("prevBtn").onclick = prevManual;
 $("nextBtn").onclick = ()=>{ haptic(); nextManual(); };
 $("prevBtn").onclick = ()=>{ haptic(); prevManual(); };
 // Switch Mode coach (en haut à droite)
@@ -1033,95 +1193,13 @@ window.addEventListener("DOMContentLoaded", ()=>{
     });
   }
 
-  const d = $("debug");
+const d = $("debug");
   d.style.display = "none";
   const hasSessions = !!window.SESSIONS;
   const hasImages = !!window.IMG;
-  d.textContent = `✅ init\nSESSIONS: ${hasSessions ? Object.keys(window.SESSIONS).length : "absent"}\nIMG keys: ${hasImages ? Object.keys(window.IMG).length : "absent"}`;
-
-  // NEW: wait for sessions loaded via Firebase (Option B)
-  const tryRender = ()=>{
-    renderSessions();
-  };
-  if(window.SESSIONS && Object.keys(window.SESSIONS||{}).length){
-    tryRender();
-  }else{
-    // Render after loader dispatches event
-    window.addEventListener("pf:sessionsReady", ()=>{
-      tryRender();
-    }, { once:true });
-
-    // fallback: show empty state after 2s if no event (keeps same UI)
-    setTimeout(()=>{
-      if(!(window.SESSIONS && Object.keys(window.SESSIONS||{}).length)){
-        tryRender();
-      }
-    }, 2000);
-  }
+  d.textContent = `✅ init\\nSESSIONS: ${hasSessions ? Object.keys(window.SESSIONS).length : "absent"}\\nIMG keys: ${hasImages ? Object.keys(window.IMG).length : "absent"}`;
+  renderSessions();
 });
 </script>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAPICbQrWgARovGaebUYYP-WwohxQAYtuw",
-  authDomain: "programme-force.firebaseapp.com",
-  projectId: "programme-force",
-  storageBucket: "programme-force.firebasestorage.app",
-  messagingSenderId: "1070910165788",
-  appId: "1:1070910165788:web:8212aec95671abfbdb60d9"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-function loadScriptOnce(src){
-  return new Promise((resolve, reject)=>{
-    if(document.querySelector(`script[data-dyn="${src}"]`)) return resolve();
-    const s = document.createElement("script");
-    s.src = src;
-    s.async = true;
-    s.setAttribute("data-dyn", src);
-    s.onload = resolve;
-    s.onerror = ()=>reject(new Error("Impossible de charger " + src));
-    document.head.appendChild(s);
-  });
-}
-
-async function loadUserSessions(uid){
-  const snap = await getDoc(doc(db, `users/${uid}/profile/config`));
-  if(!snap.exists()) throw new Error("Config Firestore manquante");
-  const { sessionsFile, sessionsVar } = snap.data();
-  await loadScriptOnce(sessionsFile);
-  if(!window[sessionsVar]) throw new Error("sessionsVar invalide");
-  window.SESSIONS = window[sessionsVar];
-  window.dispatchEvent(new Event("pf:sessionsReady"));
-}
-
-async function promptLogin(){
-  const email = prompt("Email Firebase :");
-  if(!email) return;
-  const pass = prompt("Mot de passe :");
-  if(!pass) return;
-  await signInWithEmailAndPassword(auth, email, pass);
-}
-
-onAuthStateChanged(auth, async (user)=>{
-  try{
-    if(!user){
-      await promptLogin();
-      return;
-    }
-    await loadUserSessions(user.uid);
-  }catch(e){
-    alert("Erreur chargement séances:\n" + e.message);
-  }
-});
-</script>
-
 </body>
 </html>
