@@ -8,6 +8,12 @@
 // Structure attendue :
 // window.SESSIONS = {
 
+//   KEY: { name, warmup:[...], items:[...] }, ... }
+//
+// NOTE COMPATIBILITÉ : certaines versions d'index.html lisent `SESSIONS` (sans window.)
+// → on expose les deux (window.SESSIONS et SESSIONS)
+
+window.SESSIONS = {
   COACH_FULL_BODY_B: {
     name: "Coach — Full Body B (40 min)",
     warmup: [
@@ -28,12 +34,6 @@
     ]
   },
 
- KEY: { name, warmup:[...], items:[...] }, ... }
-//
-// NOTE COMPATIBILITÉ : certaines versions d'index.html lisent `SESSIONS` (sans window.)
-// → on expose les deux (window.SESSIONS et SESSIONS)
-
-window.SESSIONS = {
 
   /* =====================
      A — PECTOR AUX / TRICEPS (2 variantes)
