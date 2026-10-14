@@ -1201,5 +1201,58 @@ const d = $("debug");
   renderSessions();
 });
 </script>
+
+<!-- Mise à jour PWA : invite discrète, sans effacer l'historique local -->
+<div id="pwaUpdateBanner" role="status" style="display:none;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:9999;padding:14px;border-radius:14px;background:#1e293b;color:#f8fafc;box-shadow:0 6px 25px #0008;font:14px system-ui,-apple-system,sans-serif;">
+  <div style="margin-bottom:10px;">Une nouvelle version est disponible.</div>
+  <button id="pwaUpdateNow" type="button" style="padding:10px 14px;border:0;border-radius:9px;background:#38bdf8;color:#020617;font-weight:700;">Mettre à jour</button>
+  <button id="pwaUpdateLater" type="button" style="padding:10px 14px;border:0;border-radius:9px;background:transparent;color:#f8fafc;">Plus tard</button>
+</div>
+<script>
+(function () {
+  if (!("serviceWorker" in navigator)) return;
+  let reloading = false;
+  let pendingWorker = null;
+  const banner = document.getElementById("pwaUpdateBanner");
+  const showUpdate = worker => {
+    if (!worker) return;
+    pendingWorker = worker;
+    banner.style.display = "block";
+  };
+  document.getElementById("pwaUpdateNow").addEventListener("click", () => {
+    if (!pendingWorker) return;
+    banner.style.display = "none";
+    pendingWorker.postMessage({type:"SKIP_WAITING"});
+  });
+  document.getElementById("pwaUpdateLater").addEventListener("click", () => {
+    banner.style.display = "none";
+  });
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading) return;
+    reloading = true;
+    location.reload();
+  });
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("./service-worker.js");
+      if (registration.waiting && navigator.serviceWorker.controller) showUpdate(registration.waiting);
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        if (!worker) return;
+        worker.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) showUpdate(worker);
+        });
+      });
+      const check = () => { if (navigator.onLine) registration.update().catch(() => {}); };
+      document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+      window.addEventListener("focus", check);
+      window.addEventListener("online", check);
+      check();
+    } catch (err) {
+      console.warn("Mise à jour PWA indisponible :", err);
+    }
+  });
+})();
+</script>
 </body>
 </html>
